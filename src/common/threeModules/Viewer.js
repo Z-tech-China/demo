@@ -9,7 +9,7 @@ import SkyBoxs from './SkyBoxs';
 import Lights from './Lights';
 import ThreeMouseEvent from './ThreeMouseEvent';
 
-// 内部 Viewer 类 - 保持与原始代码相似的结构
+// 内部 Viewer 类
 class Viewer {
   constructor(domElement) {
     THREE.Cache.enabled = true; // 开启缓存
@@ -129,7 +129,7 @@ class Viewer {
       500000
     );
     this.camera.position.set(0, 5, 50);
-    this.camera.lookAt(0, 0, 22.5);
+    this.camera.lookAt(0, 22.5, 22.5);
   }
 
   initScene() {

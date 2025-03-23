@@ -26,8 +26,8 @@ const App = () => {
     
     // 初始化Three.js
     const initThree = () => {
-      containerRef.current.style.width = '100vw';
-      containerRef.current.style.height = '100vh';
+      containerRef.current.style.width = '50vw';
+      containerRef.current.style.height = '50vh';
       
       // 创建Viewer实例 - 传入DOM元素
       viewerRef.current = new Viewer(containerRef.current);

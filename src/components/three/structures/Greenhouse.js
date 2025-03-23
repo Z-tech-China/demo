@@ -33,6 +33,8 @@ export function createGreenhouse(scene) { // 添加scene参数
     createLightSensor(frameGroup);
 
     setFan(frameGroup);
+
+    createIrrigationSystem(frameGroup,greenhouseConfig.width / 6.3);
 }
 
 // 立柱生成
@@ -262,7 +264,6 @@ function createCoverMaterial(group) {
   });
 
   function createSingleCover(zOffset) {
-    // 这里使用正确导入的 ParametricGeometry
     const coverGeometry = new ParametricGeometry((u, v, target) => {
       const angle = u * Math.PI;
       const x = Math.cos(angle) * width/2;
@@ -1223,4 +1224,143 @@ fan.setRotation( 0, Math.PI,  Math.PI/2);
 
 // 绕任意轴旋转
 //fan.rotateAroundAxis(new THREE.Vector3(1, 1, 0), Math.PI/6);  // 绕(1,1,0)轴旋转30度
+}
+
+function createIrrigationSystem(scene, boxInterval, boxCount = 18) {
+  // 创建灌溉系统组
+  const irrigationSystem = new THREE.Group();
+  
+  // 管道材质
+const pipeMaterial = new THREE.MeshStandardMaterial({
+  color: 0xf5f5dc,  // 米白色
+  roughness: 0.4,    // 降低粗糙度使其更光滑
+  metalness: 0.1,    // 降低金属感，更像PVC管
+  envMapIntensity: 0.5, // 适度的环境反射
+  flatShading: false    // 平滑着色
+});
+  
+  // 喷头材质
+  const sprinklerMaterial = new THREE.MeshStandardMaterial({
+    color: 0x404040,  // 深灰色喷头
+    roughness: 0.4,
+    metalness: 0.6
+  });
+  
+  // 水滴材质
+  const waterMaterial = new THREE.MeshStandardMaterial({
+    color: 0x77aaff,
+    transparent: true,
+    opacity: 0.7,
+    roughness: 0.1
+  });
+  
+  // 获取种植槽长度 
+  const boxLength = greenhouseConfig.length - 10;
+  
+  // 为每个种植槽创建平行水管和多个喷头
+  for (let i = 0; i < boxCount; i++) {
+    // 主水管 - 平行于种植槽
+    const pipeRadius = 0.05;
+    const pipeGeometry = new THREE.CylinderGeometry(
+      pipeRadius, 
+      pipeRadius, 
+      boxLength, 
+      16, 
+      1, 
+      false
+    );
+    
+    const pipe = new THREE.Mesh(pipeGeometry, pipeMaterial);
+    pipe.rotation.x = Math.PI / 2;  // 使管道水平
+    pipe.rotation.z = Math.PI / 2;  // 与种植槽平行
+    pipe.position.set(0, 1.7, boxInterval * i + boxInterval-0.1);
+    
+    irrigationSystem.add(pipe);
+    
+    // 在每根水管上添加多个喷头
+    const sprinklerCount = 7;  // 每根水管上的喷头数量
+    const sprinklerSpacing = boxLength / (sprinklerCount + 1);
+    
+    for (let j = 1; j <= sprinklerCount; j++) {
+      // 确定喷头在管道上的位置
+      const position = -boxLength/2 + j * sprinklerSpacing;
+      
+      // 喷头基座
+      const sprinklerBaseGeometry = new THREE.CylinderGeometry(0.06, 0.08, 0.06, 12);
+      const sprinklerBase = new THREE.Mesh(sprinklerBaseGeometry, sprinklerMaterial);
+      //sprinklerBase.rotation.x = Math.PI / 2;
+      sprinklerBase.position.set(position, 1.65, boxInterval * i + boxInterval-0.1);
+      
+      // 喷头
+      const sprinklerHeadGeometry = new THREE.ConeGeometry(0.05, 0.08, 12);
+      const sprinklerHead = new THREE.Mesh(sprinklerHeadGeometry, sprinklerMaterial);
+      sprinklerHead.rotation.x = Math.PI ;  // 向下喷水
+      sprinklerHead.position.set(position, 1.6, boxInterval * i + boxInterval-0.1);
+      
+      irrigationSystem.add(sprinklerBase);
+      irrigationSystem.add(sprinklerHead);
+      
+      // 添加水滴效果（可选）
+      if (j % 2 === 0) {  // 隔一个喷头添加水滴效果
+        createWaterDrops(sprinklerHead.position, irrigationSystem);
+      }
+    }
+  }
+  scene.add(irrigationSystem);
+  return irrigationSystem;
+}
+
+// 创建水滴效果的辅助函数
+function createWaterDrops(sprinklerPosition, parent) {
+  const dropCount = 6;
+  const dropGroup = new THREE.Group();
+  
+  // 水滴材质
+  const waterMaterial = new THREE.MeshStandardMaterial({
+    color: 0x77aaff,
+    transparent: true,
+    opacity: 0.6,
+    roughness: 0.1
+  });
+  
+  // 创建喷洒效果 - 细小水滴
+  for (let i = 0; i < dropCount; i++) {
+    const dropSize = 0.006 + Math.random() * 0.01;
+    const dropGeometry = new THREE.SphereGeometry(dropSize, 6, 6);
+    const drop = new THREE.Mesh(dropGeometry, waterMaterial);
+    
+    // 分散在喷头下方
+    const spread = 0.15;
+    const height = -0.05 - Math.random() * 0.15;
+    
+    drop.position.set(
+      sprinklerPosition.x + (Math.random() - 0.5) * spread,
+      sprinklerPosition.y + height,
+      sprinklerPosition.z + (Math.random() - 0.5) * spread
+    );
+    
+    dropGroup.add(drop);
+  }
+  
+  // 喷洒锥形区域效果
+  const mistGeometry = new THREE.ConeGeometry(0.15, 0.25, 8, 1, true);
+  const mistMaterial = new THREE.MeshStandardMaterial({
+    color: 0xaaccff,
+    transparent: true,
+    opacity: 0.2,
+    roughness: 0.1,
+    side: THREE.DoubleSide
+  });
+  
+  const mist = new THREE.Mesh(mistGeometry, mistMaterial);
+  mist.position.set(
+    sprinklerPosition.x,
+    sprinklerPosition.y - 0.12,
+    sprinklerPosition.z
+  );
+  
+  dropGroup.add(mist);
+  parent.add(dropGroup);
+  
+  return dropGroup;
 }
