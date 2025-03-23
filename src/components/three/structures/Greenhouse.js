@@ -15,7 +15,7 @@ const greenhouseConfig = {
 export const frameGroup = new THREE.Group();
 export function createGreenhouse(scene) { // 添加scene参数
     
-   // 生成纵向立柱
+  
     scene.add(frameGroup); 
     // 生成立柱
     createColumns(frameGroup);
@@ -1230,14 +1230,14 @@ function createIrrigationSystem(scene, boxInterval, boxCount = 18) {
   // 创建灌溉系统组
   const irrigationSystem = new THREE.Group();
   
-  // 管道材质
-const pipeMaterial = new THREE.MeshStandardMaterial({
-  color: 0xf5f5dc,  // 米白色
-  roughness: 0.4,    // 降低粗糙度使其更光滑
-  metalness: 0.1,    // 降低金属感，更像PVC管
-  envMapIntensity: 0.5, // 适度的环境反射
-  flatShading: false    // 平滑着色
-});
+  // 管道材质 
+  const pipeMaterial = new THREE.MeshStandardMaterial({
+    color: 0xf5f5dc,  // 米白色
+    roughness: 0.4,    // 降低粗糙度使其更光滑
+    metalness: 0.1,    // 降低金属感，更像PVC管
+    envMapIntensity: 0.5, // 适度的环境反射
+    flatShading: false    // 平滑着色
+  });
   
   // 喷头材质
   const sprinklerMaterial = new THREE.MeshStandardMaterial({
@@ -1254,7 +1254,7 @@ const pipeMaterial = new THREE.MeshStandardMaterial({
     roughness: 0.1
   });
   
-  // 获取种植槽长度 
+  // 获取种植槽长度 (使用与原始代码相同的参数)
   const boxLength = greenhouseConfig.length - 10;
   
   // 为每个种植槽创建平行水管和多个喷头
@@ -1273,12 +1273,62 @@ const pipeMaterial = new THREE.MeshStandardMaterial({
     const pipe = new THREE.Mesh(pipeGeometry, pipeMaterial);
     pipe.rotation.x = Math.PI / 2;  // 使管道水平
     pipe.rotation.z = Math.PI / 2;  // 与种植槽平行
-    pipe.position.set(0, 1.7, boxInterval * i + boxInterval-0.1);
+    pipe.position.set(0, 1.65, boxInterval * i + boxInterval-0.2);
     
     irrigationSystem.add(pipe);
+        // 创建圆弧连接部分
+        const curveRadius = 0.15;
+        const curveSegments = 8;
+        const curvePath = new THREE.CurvePath();
+        
+        // 创建90度圆弧
+        const arcCurve = new THREE.EllipseCurve(
+          boxLength/2 + curveRadius, 1.65 - curveRadius, // 圆弧中心点
+          curveRadius, curveRadius,   // x半径和y半径
+          0, Math .PI/2,              // 起始角度和结束角度
+          false,                      // 是否逆时针
+          0                           // 旋转角度
+        );
+        
+        curvePath.add(arcCurve);
+        
+        // 从圆弧创建管道几何体
+        const curvePoints = curvePath.getPoints(curveSegments);
+        const curveGeometry = new THREE.TubeGeometry(
+          new THREE.CatmullRomCurve3(
+            curvePoints.map(point => new THREE.Vector3(point.x, point.y, boxInterval * i + boxInterval))
+          ),
+          curveSegments,
+          pipeRadius,
+          12,
+          false
+        );
+        
+        const curvePipe = new THREE.Mesh(curveGeometry, pipeMaterial);
+        curvePipe.position.z-=0.2;
+        curvePipe.position.x-=curveRadius;
+        irrigationSystem.add(curvePipe);
+    
+    // 添加连接到主供水系统的垂直管道
+    const verticalPipeRadius = 0.05;
+    const verticalPipeHeight = 1.7; // 从水平管道到地面的高度
+    const verticalPipeGeometry = new THREE.CylinderGeometry(
+      verticalPipeRadius, 
+      verticalPipeRadius, 
+      verticalPipeHeight-curveRadius*2, 
+      16, 
+      1, 
+      false
+    );
+    
+    const verticalPipe = new THREE.Mesh(verticalPipeGeometry, pipeMaterial);
+    verticalPipe.position.set(boxLength/2+curveRadius, verticalPipeHeight/2, boxInterval * i + boxInterval-0.2);
+    irrigationSystem.add(verticalPipe);
+    
+
     
     // 在每根水管上添加多个喷头
-    const sprinklerCount = 7;  // 每根水管上的喷头数量
+    const sprinklerCount = 5;  // 每根水管上的喷头数量
     const sprinklerSpacing = boxLength / (sprinklerCount + 1);
     
     for (let j = 1; j <= sprinklerCount; j++) {
@@ -1288,14 +1338,13 @@ const pipeMaterial = new THREE.MeshStandardMaterial({
       // 喷头基座
       const sprinklerBaseGeometry = new THREE.CylinderGeometry(0.06, 0.08, 0.06, 12);
       const sprinklerBase = new THREE.Mesh(sprinklerBaseGeometry, sprinklerMaterial);
-      //sprinklerBase.rotation.x = Math.PI / 2;
-      sprinklerBase.position.set(position, 1.65, boxInterval * i + boxInterval-0.1);
+      sprinklerBase.position.set(position, 1.7, boxInterval * i + boxInterval-0.2);
       
       // 喷头
       const sprinklerHeadGeometry = new THREE.ConeGeometry(0.05, 0.08, 12);
       const sprinklerHead = new THREE.Mesh(sprinklerHeadGeometry, sprinklerMaterial);
-      sprinklerHead.rotation.x = Math.PI ;  // 向下喷水
-      sprinklerHead.position.set(position, 1.6, boxInterval * i + boxInterval-0.1);
+      sprinklerHead.rotateX=Math.PI;
+      sprinklerHead.position.set(position, 1.6, boxInterval * i + boxInterval-0.2);
       
       irrigationSystem.add(sprinklerBase);
       irrigationSystem.add(sprinklerHead);
@@ -1306,6 +1355,7 @@ const pipeMaterial = new THREE.MeshStandardMaterial({
       }
     }
   }
+  
   scene.add(irrigationSystem);
   return irrigationSystem;
 }
@@ -1325,7 +1375,7 @@ function createWaterDrops(sprinklerPosition, parent) {
   
   // 创建喷洒效果 - 细小水滴
   for (let i = 0; i < dropCount; i++) {
-    const dropSize = 0.006 + Math.random() * 0.01;
+    const dropSize = 0.01 + Math.random() * 0.01;
     const dropGeometry = new THREE.SphereGeometry(dropSize, 6, 6);
     const drop = new THREE.Mesh(dropGeometry, waterMaterial);
     
@@ -1353,6 +1403,7 @@ function createWaterDrops(sprinklerPosition, parent) {
   });
   
   const mist = new THREE.Mesh(mistGeometry, mistMaterial);
+  mist.rotation.x = Math.PI;  // 锥尖朝上
   mist.position.set(
     sprinklerPosition.x,
     sprinklerPosition.y - 0.12,
